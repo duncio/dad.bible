@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "dad.bible",
+  "name": "Biblia Tysiąclecia",
+  "version": "1.0.0",
+  "author": "Dad",
+  "description": "Czytaj Biblia Tysiąclecia V, szukaj wersetów i skacz do nich z paska.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Biblia",
+    "description": "Czytaj, szukaj i zapisuj wersety z Biblii Tysiąclecia",
+    "category": "Productivity",
+    "aliases": [
+      "biblia",
+      "bible",
+      "pismo"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "showVerseInTooltip": true
+    },
+    "schema": [
+      {
+        "key": "showVerseInTooltip",
+        "type": "boolean",
+        "label": "Pełny werset w podpowiedzi",
+        "description": "Pokaż treść wersetu dnia po najechaniu na ikonę",
+        "defaultValue": true
+      }
+    ]
+  }
+}

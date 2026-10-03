@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Runs both test suites and reports a single verdict.
+#
+#   tests/run            everything
+#   tests/run model      Model.js parsing and search, against data/bible.json
+#   tests/run service    Service.qml loading, lookup, stepping, bookmarks
+#
+# BIBLE_PLUGIN_DIR overrides where the service suite looks for the plugin (it
+# defaults to the copy under ~/.config/omarchy/plugins/dad.bible).
+
+set -uo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+plugin_dir="${BIBLE_PLUGIN_DIR:-$HOME/.config/omarchy/plugins/dad.bible}"
+status=0
+
+run_model() {
+  echo "== tests/test-model.js"
+  if ! node "$here/test-model.js"; then
+    status=1
+  fi
+}
+
+run_panel() {
+  echo
+  echo "== tests/test-panel.qml"
+  # Panel.qml imports qs.Commons / qs.Ui, which quickshell resolves as
+  # <config dir>/Commons and <config dir>/Ui. A standalone run gets them through
+  # symlinks in a scratch directory, so the plugin directory stays clean.
+  local work log
+  work="$(mktemp -d)"
+  ln -s /usr/share/omarchy/shell/Commons "$work/Commons"
+  ln -s /usr/share/omarchy/shell/Ui "$work/Ui"
+  cp "$here/test-panel.qml" "$work/test-panel.qml"
+  log="$(mktemp)"
+  qs -p "$work/test-panel.qml" >"$log" 2>&1
+  sed 's/\x1b\[[0-9;]*m//g' "$log" >"$log.plain"
+  sed -n 's/.*qml: \(ok\|FAIL\|all\|[0-9]* failing\)/\1/p' "$log.plain" | sed 's/^/  /'
+  if grep -qE 'FAIL|[0-9]+ failing check' "$log.plain"; then
+    status=1
+  fi
+  rm -rf "$work" "$log" "$log.plain"
+}
+
+run_service() {
+  echo
+  echo "== tests/test-service.qml"
+  local log
+  log="$(mktemp)"
+  # qs prefixes every console.log with its log category, so the check lines are
+  # matched on what follows rather than at the start of the line.
+  qs -p "$here/test-service.qml" >"$log" 2>&1
+  # qs colourises its log lines, so strip the escapes before matching.
+  sed 's/\x1b\[[0-9;]*m//g' "$log" >"$log.plain"
+  sed -n 's/.*qml: \(ok\|FAIL\|all\|[0-9]* failing\)/\1/p' "$log.plain" \
+    | sed 's/^/  /'
+  if grep -qE 'FAIL|[0-9]+ failing check' "$log.plain"; then
+    status=1
+  fi
+  rm -f "$log.plain"
+  rm -f "$log"
+}
+
+case "${1:-all}" in
+  model) run_model ;;
+  service) run_service ;;
+  panel) run_panel ;;
+  all) run_model; run_service; run_panel ;;
+  *) echo "usage: $(basename "$0") [all|model|service|panel]" >&2; exit 2 ;;
+esac
+
+echo
+if [ "$status" -eq 0 ]; then
+  echo "PASS"
+else
+  echo "FAIL"
+fi
+exit "$status"
